@@ -12,6 +12,17 @@ public class RTreeNode {
         this.children = new ArrayList<>();
         this.polygons = new ArrayList<>();
     }
+    private RTreeNode parent;
+
+    // Add a getter and setter for the parent reference
+    public RTreeNode getParent() {
+        return parent;
+    }
+
+    public void setParent(RTreeNode parent) {
+        this.parent = parent;
+    }
+
 
     public ArrayList<Polygon> getPolygons() {
         return polygons;

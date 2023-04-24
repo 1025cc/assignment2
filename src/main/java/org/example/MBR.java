@@ -25,6 +25,11 @@ public class MBR {
         this.upperRight = upperRight;
     }
 
+    /**
+     * Check if other MBR inside this MBR
+     * @param other
+     * @return
+     */
     public boolean contains(MBR other) {
         // Get the coordinates of the lower-left and upper-right corners of both MBRs
         double thisMinX = this.lowerLeft.getLon();
@@ -49,6 +54,27 @@ public class MBR {
 
         return true;
     }
+
+    /**
+     * Check if other MBR intersect with this MBR
+     * @param other
+     * @return
+     */
+    public boolean intersects(MBR other) {
+        // Check if there is no intersection along the x-axis
+        if (this.lowerLeft.getLon() > other.upperRight.getLon() || other.lowerLeft.getLon() > this.upperRight.getLon()) {
+            return false;
+        }
+
+        // Check if there is no intersection along the y-axis
+        if (this.lowerLeft.getLat() > other.upperRight.getLat() || other.lowerLeft.getLat() > this.upperRight.getLat()) {
+            return false;
+        }
+
+        // If there is no separation along both axes, the MBRs intersect
+        return true;
+    }
+
     /**
      * Combines two MBRs into a single new MBR
      * @param mbr1
@@ -65,7 +91,7 @@ public class MBR {
     }
 
     /**
-     * compute area of a mbr
+     * Compute area of this MBR
      * @param
      * @return
      */
@@ -76,5 +102,12 @@ public class MBR {
         return Math.abs(lonDifference * latDifference);
     }
 
+    @Override
+    public String toString() {
+        return "MBR{" +
+                "lowerLeft=" + lowerLeft +
+                ", upperRight=" + upperRight +
+                '}';
+    }
 
 }

@@ -29,6 +29,7 @@ public class RTree {
         if (root == null) {
             root = new RTreeNode(mbr);
             root.getPolygons().add(polygon);
+            root.setParent(null);
             return;
         }
         //find the leaf node suitable for inserting the polygon
@@ -40,7 +41,31 @@ public class RTree {
             RTreeNode newNode = splitNode(leaf);
             //adjust the tree to keep balance
             adjustTree(leaf, newNode);
+        }else {
+            leaf.setMbr(MBR.combineMBRs(leaf.getMbr(),polygon.getMbr()));
+            //backtrack and update mbrs
+            updateParentMBRs(leaf);
         }
+    }
+
+    /**
+     *  backtracking and updating MBR of parent node
+     * @param node
+     */
+    private void updateParentMBRs(RTreeNode node) {
+        // Stop backtracking if the node is the root
+        if (node == root) {
+            return;
+        }
+
+        // Get the parent node
+        RTreeNode parentNode = node.getParent();
+
+        // Update the parent node's MBR to include the current node's MBR
+        parentNode.setMbr(MBR.combineMBRs(parentNode.getMbr(),node.getMbr()));
+
+        // Recursively update the MBRs of parent nodes upwards
+        updateParentMBRs(parentNode);
     }
 
     /**
@@ -109,8 +134,10 @@ public class RTree {
             Polygon polygon2 = polygons.get(seedEntries[1]);
             // create two new leaf nodes and assign the seed entries to them
             RTreeNode leafNode1 = new RTreeNode(polygon1.getMbr());
+            leafNode1.setParent(node.getParent());
             leafNode1.getPolygons().add(polygon1);
             RTreeNode leafNode2 = new RTreeNode(polygon2.getMbr());
+            leafNode2.setParent(node.getParent());
             leafNode2.getPolygons().add(polygon2);
 
             // remove the seed entries from the original node
@@ -147,8 +174,12 @@ public class RTree {
             // create two new non leaf nodes and assign the seed entries to them
             RTreeNode nonLeafNode1 = new RTreeNode(rTreeNode1.getMbr());
             nonLeafNode1.getChildren().add(rTreeNode1);
+            nonLeafNode1.setParent(node.getParent());
+            rTreeNode1.setParent(nonLeafNode1);
             RTreeNode nonLeafNode2 = new RTreeNode(rTreeNode2.getMbr());
+            nonLeafNode2.setParent(node.getParent());
             nonLeafNode2.getChildren().add(rTreeNode2);
+            rTreeNode2.setParent(nonLeafNode2);
 
             // remove the seed entries from the original node
             node.getChildren().remove(rTreeNode1);
@@ -161,15 +192,20 @@ public class RTree {
                     //update the mbr of node
                     MBR newMBR = MBR.combineMBRs(child.getMbr(),nonLeafNode1.getMbr());
                     nonLeafNode1.getChildren().add(child);
+                    child.setParent(nonLeafNode1);
                     nonLeafNode1.setMbr(newMBR);
                 }else if(flag == 2){
                     MBR newMBR = MBR.combineMBRs(child.getMbr(),nonLeafNode2.getMbr());
                     nonLeafNode2.getChildren().add(child);
+                    child.setParent(nonLeafNode2);
                     nonLeafNode2.setMbr(newMBR);
                 }
             }
             node.getChildren().clear();
             node.getChildren().addAll(nonLeafNode1.getChildren());
+            for(RTreeNode child:nonLeafNode1.getChildren()){
+                child.setParent(node);
+            }
             node.setMbr(nonLeafNode1.getMbr());
             return nonLeafNode2;
 
@@ -255,16 +291,20 @@ public class RTree {
         if (node == root) {
             MBR newRootMBR = MBR.combineMBRs(node.getMbr(),newNode.getMbr());
             RTreeNode newRoot = new RTreeNode(newRootMBR);
+            newRoot.setParent(null);
+            node.setParent(newRoot);
+            newNode.setParent(newRoot);
             newRoot.getChildren().add(node);
             newRoot.getChildren().add(newNode);
             root = newRoot;
             return;
         }
-        RTreeNode parent = findParent(root, node);
+        RTreeNode parent = node.getParent();
         // Update the MBR of node in the parent
         parent.setMbr(MBR.combineMBRs(parent.getMbr(),node.getMbr()));
         // Add the new node to the parent
         parent.getChildren().add(newNode);
+        newNode.setParent(parent);
         // If the parent is full,split it
         if (parent.getChildren().size() > maxChildren) {
             RTreeNode newSibling = splitNode(parent);
@@ -275,26 +315,6 @@ public class RTree {
         }
     }
 
-    /**
-     * find the parent node of the target node from the current node
-     * @param currentNode
-     * @param targetNode
-     * @return the parent node of the target node
-     */
-    private RTreeNode findParent(RTreeNode currentNode, RTreeNode targetNode) {
-        if (currentNode.getChildren().contains(targetNode)) {
-            return currentNode;
-        }
-
-        for (RTreeNode child : currentNode.getChildren()) {
-            RTreeNode foundNode = findParent(child, targetNode);
-            if (foundNode != null) {
-                return foundNode;
-            }
-        }
-
-        return null;
-    }
 
     /**
      * @return the height of the tree
@@ -363,16 +383,39 @@ public class RTree {
             }
         }
     }
+
+
+    public QueryResult windowQuery(MBR queryMBR) {
+        List<Polygon> results = new ArrayList<>();
+        int checkedCount = windowQueryRecursive(root, queryMBR, results);
+        return new QueryResult(results,checkedCount);
+    }
+
     /**
-     * output for task 1.3
-     * @return
+     * @param node
+     * @param queryMBR
+     * @param results
+     * @return the number of checked polygons
      */
-    public String output(){
-        StringBuilder sb = new StringBuilder();
-        sb.append("height of tree: ").append(getTreeHeight())
-                .append("\nnumber of non-leaf nodes : ").append(getNumberOfNonLeafNodes())
-                .append("\nnumber of leaf nodes : ").append(getNumberOfLeafNodes());
-        return sb.toString();
+    private int windowQueryRecursive(RTreeNode node, MBR queryMBR, List<Polygon> results) {
+        int checkedCount = 0;
+        if (node.isLeaf()) {
+            // If the node is a leaf, add all intersecting polygons to the result set
+            for (Polygon polygon : node.getPolygons()) {
+                checkedCount++;
+                if (queryMBR.contains(polygon.getMbr())) {
+                    results.add(polygon);
+                }
+            }
+        } else {
+            // If the node is not a leaf, visit child nodes whose MBRs intersect with the query MBR
+            for (RTreeNode child : node.getChildren()) {
+                if (queryMBR.intersects(child.getMbr())) {
+                    checkedCount += windowQueryRecursive(child, queryMBR, results);
+                }
+            }
+        }
+        return checkedCount;
     }
 }
 

@@ -30,6 +30,8 @@ class Point implements Serializable {
 
     @Override
     public String toString() {
-        return  ""+ lon+ " "+lat+"";
+        return "(" + lon +
+                ", " + lat +
+                ")";
     }
 }

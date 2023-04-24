@@ -20,6 +20,13 @@ class Polygon implements Serializable {
 
         computeMBR();
     }
+    public Polygon( String name,List<Point> geometry) {
+        this.name = name;
+        this.geometry = geometry;
+
+        computeMBR();
+    }
+
     private void computeMBR() {
         double minX = Double.POSITIVE_INFINITY;
         double minY = Double.POSITIVE_INFINITY;
@@ -67,6 +74,10 @@ class Polygon implements Serializable {
 
     public List<Point> getGeometry() {
         return geometry;
+    }
+
+    public void setGeometry(List<Point> geometry){
+        this.geometry = geometry;
     }
 
     public void addPoint(Point point) {
