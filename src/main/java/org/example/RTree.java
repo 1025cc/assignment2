@@ -400,7 +400,7 @@ public class RTree {
     private int windowQueryRecursive(RTreeNode node, MBR queryMBR, List<Polygon> results) {
         int checkedCount = 0;
         if (node.isLeaf()) {
-            // If the node is a leaf, add all intersecting polygons to the result set
+            // If the node is a leaf, add all containing polygons to the result set
             for (Polygon polygon : node.getPolygons()) {
                 checkedCount++;
                 if (queryMBR.contains(polygon.getMbr())) {
